@@ -40,3 +40,71 @@
 .hero-glow {
   animation: hero-glow 3s infinite ease-in-out;
 }
+
+/* Floating Levitation Animation for Sidekick Hero */
+@keyframes hero-levitate {
+  0%, 100% {
+    transform: translateY(0px) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-12px) rotate(1.5deg);
+  }
+}
+
+.animate-hero-float {
+  animation: hero-levitate 3.5s ease-in-out infinite;
+}
+
+/* Background Slow Drift / Breath */
+@keyframes bg-drift {
+  0%, 100% {
+    transform: scale(1.03) translate(0, 0);
+  }
+  50% {
+    transform: scale(1.08) translate(-1%, -1.5%);
+  }
+}
+
+.animate-bg-drift {
+  animation: bg-drift 24s ease-in-out infinite;
+}
+
+/* Floating Light Particles */
+@keyframes float-particle {
+  0% {
+    transform: translateY(100vh) translateX(0) scale(0.6);
+    opacity: 0;
+  }
+  20% {
+    opacity: 0.8;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(-10vh) translateX(20px) scale(1.2);
+    opacity: 0;
+  }
+}
+
+.floating-particle {
+  position: absolute;
+  pointer-events: none;
+  animation: float-particle linear infinite;
+}
+
+/* Aura Glow Pulse */
+@keyframes aura-breathe {
+  0%, 100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.12);
+  }
+}
+
+.animate-aura {
+  animation: aura-breathe 2.8s ease-in-out infinite;
+}

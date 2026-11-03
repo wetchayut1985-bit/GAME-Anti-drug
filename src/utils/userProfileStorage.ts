@@ -25,7 +25,7 @@ export const DEFAULT_PROFILE: UserProfile = {
   id: 'hero_' + Math.floor(Math.random() * 100000),
   fullName: 'ธนพัฒน์ รักความดี',
   nickname: 'ผู้พิทักษ์เยาวชน',
-  school: 'โรงเรียนมัธยมวิทยาคม',
+  school: 'โรงเรียนขุขันธ์',
   grade: 'มัธยมศึกษาปีที่ 3',
   motto: 'รักสุขภาพ ไม่พึ่งพายาเสพติด ก้าวสู่อนาคตที่สดใส',
   club: 'ชมรม To Be Number One & กีฬา',

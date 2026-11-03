@@ -16,11 +16,17 @@ import { VictorySummaryScreen } from './components/VictorySummaryScreen';
 import { HeroMentorModal } from './components/HeroMentorModal';
 import { ProfileModal } from './components/ProfileModal';
 import { ShopModal } from './components/ShopModal';
+import { CharacterCustomizerModal } from './components/CharacterCustomizerModal';
+import { FloatingHeroCompanion } from './components/FloatingHeroCompanion';
+import { AnimatedBackground } from './components/AnimatedBackground';
 import { CHARACTERS, Character, STAGES } from './data/gameContent';
+import { CharacterCustomization, DEFAULT_CUSTOMIZATION } from './data/characterCustomization';
 import { UserProfile, loadUserProfile, saveUserProfile } from './utils/userProfileStorage';
 import { sound } from './utils/audio';
 
 type GameState = 'TITLE' | 'STAGE_1' | 'STAGE_2' | 'STAGE_3' | 'STAGE_4' | 'STAGE_5' | 'VICTORY';
+
+const CUSTOMIZATION_KEY = 'drug_free_hero_customization_v1';
 
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('TITLE');
@@ -31,10 +37,24 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState<number>(30);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.getMuted());
 
+  // Character Customization State
+  const [customization, setCustomization] = useState<CharacterCustomization>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const stored = localStorage.getItem(CUSTOMIZATION_KEY);
+        if (stored) return { ...DEFAULT_CUSTOMIZATION, ...JSON.parse(stored) };
+      } catch {
+        // Fallback
+      }
+    }
+    return DEFAULT_CUSTOMIZATION;
+  });
+
   // Modals state
   const [isMentorOpen, setIsMentorOpen] = useState<boolean>(false);
   const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
   const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
+  const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
 
   // Intermediate Stage Completion Modal State
   const [stageCompleteData, setStageCompleteData] = useState<{
@@ -44,14 +64,27 @@ export default function App() {
     stars: number;
   } | null>(null);
 
-  // Sync mute
+  const handleSaveCustomization = (updated: CharacterCustomization) => {
+    setCustomization(updated);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(CUSTOMIZATION_KEY, JSON.stringify(updated));
+    }
+    // Also sync to profile nickname & avatar preset
+    const updatedProfile: UserProfile = {
+      ...profile,
+      nickname: updated.nickname,
+      avatarPreset: updated.gender === 'boy' ? 'boy' : 'girl',
+    };
+    setProfile(updatedProfile);
+    saveUserProfile(updatedProfile);
+  };
+
   const handleToggleMute = () => {
     const muted = sound.toggleMute();
     setIsMuted(muted);
   };
 
   const handleStartGame = (name: string) => {
-    // Sync name to profile if entered
     if (name && name !== profile.nickname) {
       const updated = { ...profile, nickname: name };
       setProfile(updated);
@@ -64,7 +97,6 @@ export default function App() {
 
   const handleUpdateScore = (points: number) => {
     setTotalScore((prev) => prev + points);
-    // Accumulate total score ever for leveling up
     const updated = { ...profile, totalScoreEver: profile.totalScoreEver + points };
     setProfile(updated);
     saveUserProfile(updated);
@@ -76,7 +108,6 @@ export default function App() {
     saveUserProfile(updated);
   };
 
-  // Called when stage finishes
   const handleStageComplete = (stageId: number, score: number, stars: number) => {
     setStageStars((prev) => {
       const next = [...prev];
@@ -84,9 +115,7 @@ export default function App() {
       return next;
     });
 
-    // Reward stage completion coins (+10 coins per stage!)
     handleEarnCoins(10);
-
     const currentStageInfo = STAGES.find((s) => s.id === stageId) || STAGES[0];
 
     setStageCompleteData({
@@ -97,7 +126,6 @@ export default function App() {
     });
   };
 
-  // Called when user clicks "Next Stage" inside the modal
   const handleProceedNextStage = () => {
     if (!stageCompleteData) return;
     const completedStageId = stageCompleteData.stageId;
@@ -112,7 +140,6 @@ export default function App() {
     } else if (completedStageId === 4) {
       setGameState('STAGE_5');
     } else if (completedStageId === 5) {
-      // Award grand finale bonus (+30 coins!)
       handleEarnCoins(30);
       setGameState('VICTORY');
     }
@@ -126,7 +153,6 @@ export default function App() {
     setStageCompleteData(null);
   };
 
-  // Map state to stage id
   const getCurrentStageId = (): number => {
     switch (gameState) {
       case 'STAGE_1':
@@ -144,16 +170,23 @@ export default function App() {
     }
   };
 
-  // Active equipped perks
+  // Get active background scene per stage
+  const getStageScene = (): 'school' | 'park' | 'mascots' => {
+    if (gameState === 'STAGE_1' || gameState === 'STAGE_2') return 'school';
+    if (gameState === 'STAGE_4' || gameState === 'STAGE_5') return 'park';
+    return 'mascots';
+  };
+
   const hasCutChoicePowerup = profile.equippedPowerups.includes('powerup_cut_choice');
   const hasExtraTimePowerup = profile.equippedPowerups.includes('powerup_extra_time');
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-body selection:bg-amber-400 selection:text-slate-950">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-body selection:bg-amber-400 selection:text-slate-950 relative overflow-x-hidden">
       {/* Title Screen */}
       {gameState === 'TITLE' && (
         <TitleScreen
           selectedCharacter={selectedCharacter}
+          customization={customization}
           profile={profile}
           onSelectCharacter={setSelectedCharacter}
           onStartGame={handleStartGame}
@@ -161,12 +194,17 @@ export default function App() {
           onToggleMute={handleToggleMute}
           onOpenProfile={() => setIsProfileOpen(true)}
           onOpenShop={() => setIsShopOpen(true)}
+          onOpenCustomizer={() => setIsCustomizerOpen(true)}
         />
       )}
 
       {/* In-Game Active Stages */}
       {gameState !== 'TITLE' && gameState !== 'VICTORY' && (
-        <>
+        <div className="relative min-h-screen flex flex-col">
+          {/* Animated Thematic Background for Active Stages */}
+          <AnimatedBackground scene={getStageScene()} />
+
+          {/* Navigation Header */}
           <StageNavHeader
             character={selectedCharacter}
             profile={profile}
@@ -182,7 +220,8 @@ export default function App() {
             onOpenShop={() => setIsShopOpen(true)}
           />
 
-          <main className="flex-1 flex flex-col justify-center py-6 px-2 sm:px-4">
+          {/* Main Gameplay Canvas / Stage View */}
+          <main className="flex-1 flex flex-col justify-center py-6 px-2 sm:px-4 relative z-10">
             {gameState === 'STAGE_1' && (
               <StageOneQuiz
                 onComplete={(score, stars) => handleStageComplete(1, score, stars)}
@@ -228,19 +267,29 @@ export default function App() {
               />
             )}
           </main>
-        </>
+
+          {/* Floating Levitating Hero Companion during Gameplay */}
+          <FloatingHeroCompanion
+            customization={customization}
+            customUrl={profile.customAvatarUrl}
+            stageId={getCurrentStageId()}
+          />
+        </div>
       )}
 
       {/* Victory Summary Screen */}
       {gameState === 'VICTORY' && (
-        <div className="py-8 px-4 flex-1 flex flex-col justify-center">
-          <VictorySummaryScreen
-            character={selectedCharacter}
-            totalScore={totalScore}
-            stars={stageStars}
-            playerName={profile.fullName || profile.nickname}
-            onRestart={handleRestart}
-          />
+        <div className="py-8 px-4 flex-1 flex flex-col justify-center relative z-10">
+          <AnimatedBackground scene="park" />
+          <div className="relative z-10">
+            <VictorySummaryScreen
+              character={selectedCharacter}
+              totalScore={totalScore}
+              stars={stageStars}
+              playerName={profile.fullName || profile.nickname || customization.nickname}
+              onRestart={handleRestart}
+            />
+          </div>
         </div>
       )}
 
@@ -272,6 +321,14 @@ export default function App() {
         onClose={() => setIsShopOpen(false)}
         profile={profile}
         onUpdateProfile={setProfile}
+      />
+
+      {/* Character Customizer Modal (Choose Boy/Girl & Customize) */}
+      <CharacterCustomizerModal
+        isOpen={isCustomizerOpen}
+        onClose={() => setIsCustomizerOpen(false)}
+        customization={customization}
+        onSave={handleSaveCustomization}
       />
     </div>
   );
