@@ -1,20 +1,24 @@
 import React, { useState, useEffect } from 'react';
-import { CheckCircle2, XCircle, Lightbulb, ArrowRight, Sparkles, BookOpen } from 'lucide-react';
+import { CheckCircle2, XCircle, Lightbulb, ArrowRight, Sparkles, BookOpen, Glasses, Coins } from 'lucide-react';
 import { QUIZ_QUESTIONS, QuizQuestion } from '../data/gameContent';
 import { sound } from '../utils/audio';
 
 interface StageOneQuizProps {
   onComplete: (score: number, stars: number) => void;
   onUpdateScore: (points: number) => void;
+  onEarnCoins?: (amount: number) => void;
   setTimeLeft: React.Dispatch<React.SetStateAction<number>>;
   hasPerkExtraTime?: boolean;
+  hasCutChoicePowerup?: boolean;
 }
 
 export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
   onComplete,
   onUpdateScore,
+  onEarnCoins,
   setTimeLeft,
   hasPerkExtraTime = false,
+  hasCutChoicePowerup = false,
 }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
@@ -22,9 +26,23 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
   const [stageScore, setStageScore] = useState(0);
   const [correctCount, setCorrectCount] = useState(0);
   const [streak, setStreak] = useState(0);
-  const [questionTimer, setQuestionTimer] = useState(hasPerkExtraTime ? 25 : 20);
+  const [eliminatedOption, setEliminatedOption] = useState<number | null>(null);
+
+  const initialTime = (hasPerkExtraTime ? 25 : 20) + (hasCutChoicePowerup ? 5 : 0);
+  const [questionTimer, setQuestionTimer] = useState(initialTime);
 
   const currentQ: QuizQuestion = QUIZ_QUESTIONS[currentIndex];
+
+  // If player has cut-choice powerup, eliminate one wrong option on question mount
+  useEffect(() => {
+    if (hasCutChoicePowerup) {
+      const wrongOptions = [0, 1, 2, 3].filter((idx) => idx !== currentQ.correctIndex);
+      const chosenWrong = wrongOptions[Math.floor(Math.random() * wrongOptions.length)];
+      setEliminatedOption(chosenWrong);
+    } else {
+      setEliminatedOption(null);
+    }
+  }, [currentIndex, hasCutChoicePowerup, currentQ.correctIndex]);
 
   // Sync global timer for HUD
   useEffect(() => {
@@ -58,7 +76,7 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
   };
 
   const handleSelectOption = (idx: number) => {
-    if (isAnswered) return;
+    if (isAnswered || idx === eliminatedOption) return;
     sound.playClick();
     setSelectedOption(idx);
     setIsAnswered(true);
@@ -66,7 +84,6 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
     const isCorrect = idx === currentQ.correctIndex;
     if (isCorrect) {
       sound.playCorrect();
-      // Calculate score: 10 base + speed bonus + streak bonus
       const speedBonus = Math.floor(questionTimer / 4);
       const streakBonus = streak * 2;
       const earned = 10 + speedBonus + streakBonus;
@@ -75,6 +92,11 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
       setCorrectCount((prev) => prev + 1);
       setStreak((prev) => prev + 1);
       onUpdateScore(earned);
+
+      // Earn +5 coins per correct answer!
+      if (onEarnCoins) {
+        onEarnCoins(5);
+      }
     } else {
       sound.playWrong();
       setStreak(0);
@@ -87,10 +109,8 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
       setCurrentIndex((prev) => prev + 1);
       setSelectedOption(null);
       setIsAnswered(false);
-      setQuestionTimer(hasPerkExtraTime ? 25 : 20);
+      setQuestionTimer(initialTime);
     } else {
-      // Complete Stage 1
-      const totalQuestions = QUIZ_QUESTIONS.length;
       let stars = 1;
       if (correctCount >= 5) stars = 3;
       else if (correctCount >= 3) stars = 2;
@@ -119,6 +139,12 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
           </div>
 
           <div className="flex items-center gap-2 text-xs">
+            {hasCutChoicePowerup && (
+              <span className="flex items-center gap-1 font-semibold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 px-2.5 py-1 rounded-full border border-blue-200 dark:border-blue-800">
+                <Glasses className="w-3.5 h-3.5" />
+                <span>แว่นสแกนปัญญาทำงาน</span>
+              </span>
+            )}
             {streak > 1 && (
               <span className="flex items-center gap-1 font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/40 px-2.5 py-1 rounded-full border border-amber-200 dark:border-amber-800">
                 <Sparkles className="w-3.5 h-3.5" />
@@ -131,8 +157,8 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
           </div>
         </div>
 
-        {/* Progress Bar & Time Bar */}
-        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden relative">
+        {/* Progress Bar */}
+        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
           <div
             className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2.5 rounded-full transition-all duration-300"
             style={{ width: `${((currentIndex + 1) / QUIZ_QUESTIONS.length) * 100}%` }}
@@ -156,11 +182,15 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
           {currentQ.options.map((option, idx) => {
             const isSelected = selectedOption === idx;
             const isCorrect = idx === currentQ.correctIndex;
+            const isEliminated = idx === eliminatedOption;
 
             let btnStyle =
               'bg-slate-50 dark:bg-slate-800/70 border-slate-200 dark:border-slate-700/80 text-slate-800 dark:text-slate-200 hover:bg-blue-50/70 dark:hover:bg-blue-950/30 hover:border-blue-300 dark:hover:border-blue-700';
 
-            if (isAnswered) {
+            if (isEliminated) {
+              btnStyle =
+                'opacity-30 bg-slate-100 dark:bg-slate-800/20 line-through text-slate-400 border-slate-200 dark:border-slate-800 cursor-not-allowed';
+            } else if (isAnswered) {
               if (isCorrect) {
                 btnStyle =
                   'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-500 text-emerald-900 dark:text-emerald-200 ring-2 ring-emerald-500/30 font-semibold';
@@ -175,7 +205,7 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
             return (
               <button
                 key={idx}
-                disabled={isAnswered}
+                disabled={isAnswered || isEliminated}
                 onClick={() => handleSelectOption(idx)}
                 className={`w-full text-left p-4 rounded-xl border text-sm sm:text-base transition-all flex items-center justify-between gap-3 cursor-pointer ${btnStyle}`}
               >
@@ -193,6 +223,12 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
                   </span>
                   <span>{option}</span>
                 </div>
+
+                {isEliminated && (
+                  <span className="text-[11px] text-blue-500 font-semibold shrink-0">
+                    (ตัดชอยส์ผิดโดยแว่นสแกน)
+                  </span>
+                )}
 
                 {isAnswered && (
                   <span className="shrink-0">
@@ -234,7 +270,9 @@ export const StageOneQuiz: React.FC<StageOneQuizProps> = ({
                         : 'text-amber-800 dark:text-amber-300'
                     }`}
                   >
-                    {selectedOption === currentQ.correctIndex ? 'ถูกต้องยอดเยี่ยม! (+10 คะแนน)' : 'คำตอบที่ถูกต้องและข้อเท็จจริง'}
+                    {selectedOption === currentQ.correctIndex
+                      ? 'ถูกต้องยอดเยี่ยม! (+10 คะแนน & +5 เหรียญทอง)'
+                      : 'คำตอบที่ถูกต้องและข้อเท็จจริง'}
                   </h4>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed">

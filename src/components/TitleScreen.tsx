@@ -1,32 +1,74 @@
 import React, { useState } from 'react';
-import { Play, Volume2, VolumeX, Shield, Sparkles, HelpCircle, Star, Users, Check, BookOpen } from 'lucide-react';
+import { Play, Volume2, VolumeX, Shield, Sparkles, HelpCircle, Star, Users, Check, BookOpen, User, ShoppingBag, Coins, School } from 'lucide-react';
 import { CHARACTERS, Character, STAGES } from '../data/gameContent';
+import { UserProfile } from '../utils/userProfileStorage';
 import { ASSET_IMAGES } from '../assets/assetPaths';
 import { sound } from '../utils/audio';
 
 interface TitleScreenProps {
   selectedCharacter: Character;
+  profile: UserProfile;
   onSelectCharacter: (char: Character) => void;
   onStartGame: (playerName: string) => void;
   isMuted: boolean;
   onToggleMute: () => void;
+  onOpenProfile: () => void;
+  onOpenShop: () => void;
 }
 
 export const TitleScreen: React.FC<TitleScreenProps> = ({
   selectedCharacter,
+  profile,
   onSelectCharacter,
   onStartGame,
   isMuted,
   onToggleMute,
+  onOpenProfile,
+  onOpenShop,
 }) => {
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(profile.nickname || '');
   const [showRules, setShowRules] = useState(false);
 
   const handleStart = () => {
     sound.playClick();
     sound.playHeroPower();
     sound.startBgm();
-    onStartGame(playerName.trim() || selectedCharacter.nickname);
+    onStartGame(playerName.trim() || profile.nickname || selectedCharacter.nickname);
+  };
+
+  const renderProfileAvatar = () => {
+    if (profile.avatarType === 'custom' && profile.customAvatarUrl) {
+      return (
+        <img
+          src={profile.customAvatarUrl}
+          alt="Avatar"
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+    if (profile.avatarPreset === 'boy') {
+      return (
+        <img
+          src={ASSET_IMAGES.avatarBoy}
+          alt="Avatar Boy"
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+    if (profile.avatarPreset === 'girl') {
+      return (
+        <img
+          src={ASSET_IMAGES.avatarGirl}
+          alt="Avatar Girl"
+          className="w-full h-full object-cover"
+        />
+      );
+    }
+    return (
+      <div className={`w-full h-full bg-gradient-to-tr ${selectedCharacter.color} flex items-center justify-center font-bold text-xs text-white`}>
+        {profile.nickname.charAt(0) || 'ฮ'}
+      </div>
+    );
   };
 
   return (
@@ -42,15 +84,35 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       </div>
 
       {/* Top Floating Controls */}
-      <header className="relative z-10 p-4 sm:p-6 flex items-center justify-between max-w-6xl mx-auto w-full">
+      <header className="relative z-10 p-4 sm:p-6 flex flex-wrap items-center justify-between gap-3 max-w-6xl mx-auto w-full">
         {/* White School Campaign Badge */}
         <div className="flex items-center gap-2 bg-slate-900/80 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-700/80 text-xs text-slate-300">
           <Shield className="w-4 h-4 text-emerald-400" />
           <span>โครงการเยาวชนไทย หัวใจสีขาว ปลอดยาเสพติด</span>
         </div>
 
-        {/* Top Right Actions */}
-        <div className="flex items-center gap-2.5">
+        {/* Top Right Quick Actions: Profile, Shop, Rules, Audio */}
+        <div className="flex items-center gap-2">
+          {/* Profile Button */}
+          <button
+            onClick={onOpenProfile}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 backdrop-blur-md border border-slate-700 text-xs font-semibold text-slate-200 transition-all cursor-pointer shadow-sm"
+          >
+            <div className="w-5 h-5 rounded-full overflow-hidden ring-1 ring-amber-400">
+              {renderProfileAvatar()}
+            </div>
+            <span>โปรไฟล์</span>
+          </button>
+
+          {/* Shop Button with Coins */}
+          <button
+            onClick={onOpenShop}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500/20 to-orange-500/20 hover:from-amber-500/30 hover:to-orange-500/30 backdrop-blur-md border border-amber-500/40 text-amber-300 text-xs font-bold transition-all cursor-pointer shadow-sm"
+          >
+            <ShoppingBag className="w-4 h-4" />
+            <span className="tabular-nums">{profile.heroCoins} เหรียญ</span>
+          </button>
+
           <button
             onClick={() => {
               sound.playClick();
@@ -59,7 +121,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 backdrop-blur-md border border-slate-700 text-xs font-medium text-slate-200 transition-colors cursor-pointer"
           >
             <HelpCircle className="w-4 h-4 text-blue-400" />
-            <span>กติกา & ด่านทั้ง 5</span>
+            <span className="hidden sm:inline">กติกา</span>
           </button>
 
           <button
@@ -73,9 +135,9 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       </header>
 
       {/* Hero Title & Centerpiece */}
-      <main className="relative z-10 max-w-5xl mx-auto px-4 py-4 w-full flex flex-col items-center text-center">
+      <main className="relative z-10 max-w-5xl mx-auto px-4 py-3 w-full flex flex-col items-center text-center">
         {/* Animated Badge */}
-        <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-semibold mb-3">
+        <div className="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-gradient-to-r from-amber-500/20 to-emerald-500/20 border border-amber-400/40 text-amber-300 text-xs sm:text-sm font-semibold mb-2">
           <Sparkles className="w-4 h-4 text-amber-400" />
           <span>เกมออนไลน์ 2 มิติ เพื่อรณรงค์ต่อต้านยาเสพติด</span>
         </div>
@@ -84,16 +146,16 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         <h1 className="text-4xl sm:text-6xl font-heading font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-amber-300 via-emerald-300 to-sky-300 drop-shadow-[0_4px_20px_rgba(59,130,246,0.3)]">
           ภารกิจพิชิตยาเสพติด
         </h1>
-        <div className="text-xl sm:text-2xl font-display font-extrabold tracking-wider text-slate-300 mt-1 uppercase">
+        <div className="text-xl sm:text-2xl font-display font-extrabold tracking-wider text-slate-300 mt-0.5 uppercase">
           Drug-Free Hero Adventure
         </div>
         <p className="text-xs sm:text-sm text-slate-300 max-w-xl mx-auto mt-2 leading-relaxed">
           รับบทเป็นฮีโร่ปกป้องเพื่อนและชุมชนจากยาเสพติด ฝึกทักษะการปฏิเสธอย่างมั่นใจ
-          ตอบคำถามความรู้ และสะสมเหรียญเกียรติยศสูงสุด
+          สะสมแต้มแลกซื้อไอเทมในร้านค้า และบันทึกบัตรประจำตัวฮีโร่
         </p>
 
         {/* Character Selection Carousel */}
-        <div className="w-full mt-6 max-w-4xl">
+        <div className="w-full mt-5 max-w-4xl">
           <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center justify-center gap-1.5">
             <Users className="w-4 h-4 text-blue-400" />
             <span>เลือกตัวละครฮีโร่ของคุณ</span>
@@ -122,7 +184,6 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
                   )}
 
                   <div>
-                    {/* Character Avatar Initial Icon */}
                     <div
                       className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${char.color} flex items-center justify-center text-white font-heading font-extrabold text-xl shadow-md mb-2.5`}
                     >
@@ -146,20 +207,28 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </div>
         </div>
 
-        {/* Player Name Input & Start Button */}
-        <div className="mt-6 w-full max-w-md bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-2xl flex flex-col gap-3">
-          <div className="text-left">
-            <label className="text-xs font-semibold text-slate-400 block mb-1">
-              ชื่อฮีโร่ของคุณ (สำหรับพิมพ์ลงบนเกียรติบัตร):
-            </label>
-            <input
-              type="text"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder={`เช่น ${selectedCharacter.nickname} ผู้พิทักษ์ (เว้นว่างได้)`}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
-            />
+        {/* Player Name & Action Cluster */}
+        <div className="mt-5 w-full max-w-md bg-slate-900/90 backdrop-blur-md p-4 sm:p-5 rounded-3xl border border-slate-800 shadow-2xl flex flex-col gap-3">
+          <div className="text-left flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-400">
+              ชื่อฮีโร่ของคุณ (แก้ไขในโปรไฟล์ได้):
+            </span>
+            <button
+              onClick={onOpenProfile}
+              className="text-[11px] text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+            >
+              <User className="w-3 h-3" />
+              <span>แก้ไขประวัติ</span>
+            </button>
           </div>
+
+          <input
+            type="text"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            placeholder={`เช่น ${profile.nickname || selectedCharacter.nickname} (เว้นว่างได้)`}
+            className="w-full px-4 py-2.5 rounded-xl bg-slate-800 border border-slate-700 text-white placeholder-slate-500 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+          />
 
           <button
             onClick={handleStart}
@@ -172,11 +241,11 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
       </main>
 
       {/* Footer Info */}
-      <footer className="relative z-10 p-4 text-center text-xs text-slate-500">
+      <footer className="relative z-10 p-3 text-center text-xs text-slate-500">
         <span>© ๒๕๖๙ ภารกิจพิชิตยาเสพติด (Drug-Free Hero) · เพื่อการศึกษาและการรณรงค์ในโรงเรียน</span>
       </footer>
 
-      {/* Rules & 5 Stages Overview Modal */}
+      {/* Rules Modal */}
       {showRules && (
         <div className="fixed inset-0 z-50 bg-slate-950/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200 overflow-y-auto">
           <div className="bg-slate-900 rounded-3xl max-w-xl w-full p-6 sm:p-8 border border-slate-800 shadow-2xl my-8 relative">
@@ -194,7 +263,7 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
               </h2>
             </div>
             <p className="text-xs text-slate-400 mb-4">
-              ผู้เล่นจะต้องพิชิตทั้ง 5 ภารกิจเพื่อสะสมดาวและรับเหรียญฮีโร่ต้านยาเสพติด:
+              ผู้เล่นจะต้องพิชิตทั้ง 5 ภารกิจเพื่อสะสมดาว เก็บเหรียญ และรับเหรียญฮีโร่ต้านยาเสพติด:
             </p>
 
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">

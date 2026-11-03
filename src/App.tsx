@@ -14,7 +14,10 @@ import { StageFiveCommunity } from './components/StageFiveCommunity';
 import { StageCompleteModal } from './components/StageCompleteModal';
 import { VictorySummaryScreen } from './components/VictorySummaryScreen';
 import { HeroMentorModal } from './components/HeroMentorModal';
+import { ProfileModal } from './components/ProfileModal';
+import { ShopModal } from './components/ShopModal';
 import { CHARACTERS, Character, STAGES } from './data/gameContent';
+import { UserProfile, loadUserProfile, saveUserProfile } from './utils/userProfileStorage';
 import { sound } from './utils/audio';
 
 type GameState = 'TITLE' | 'STAGE_1' | 'STAGE_2' | 'STAGE_3' | 'STAGE_4' | 'STAGE_5' | 'VICTORY';
@@ -22,12 +25,16 @@ type GameState = 'TITLE' | 'STAGE_1' | 'STAGE_2' | 'STAGE_3' | 'STAGE_4' | 'STAG
 export default function App() {
   const [gameState, setGameState] = useState<GameState>('TITLE');
   const [selectedCharacter, setSelectedCharacter] = useState<Character>(CHARACTERS[0]);
-  const [playerName, setPlayerName] = useState<string>('');
+  const [profile, setProfile] = useState<UserProfile>(() => loadUserProfile());
   const [totalScore, setTotalScore] = useState<number>(0);
   const [stageStars, setStageStars] = useState<number[]>([0, 0, 0, 0, 0]);
   const [timeLeft, setTimeLeft] = useState<number>(30);
   const [isMuted, setIsMuted] = useState<boolean>(() => sound.getMuted());
+
+  // Modals state
   const [isMentorOpen, setIsMentorOpen] = useState<boolean>(false);
+  const [isProfileOpen, setIsProfileOpen] = useState<boolean>(false);
+  const [isShopOpen, setIsShopOpen] = useState<boolean>(false);
 
   // Intermediate Stage Completion Modal State
   const [stageCompleteData, setStageCompleteData] = useState<{
@@ -44,7 +51,12 @@ export default function App() {
   };
 
   const handleStartGame = (name: string) => {
-    setPlayerName(name);
+    // Sync name to profile if entered
+    if (name && name !== profile.nickname) {
+      const updated = { ...profile, nickname: name };
+      setProfile(updated);
+      saveUserProfile(updated);
+    }
     setTotalScore(0);
     setStageStars([0, 0, 0, 0, 0]);
     setGameState('STAGE_1');
@@ -52,6 +64,16 @@ export default function App() {
 
   const handleUpdateScore = (points: number) => {
     setTotalScore((prev) => prev + points);
+    // Accumulate total score ever for leveling up
+    const updated = { ...profile, totalScoreEver: profile.totalScoreEver + points };
+    setProfile(updated);
+    saveUserProfile(updated);
+  };
+
+  const handleEarnCoins = (amount: number) => {
+    const updated = { ...profile, heroCoins: profile.heroCoins + amount };
+    setProfile(updated);
+    saveUserProfile(updated);
   };
 
   // Called when stage finishes
@@ -61,6 +83,9 @@ export default function App() {
       next[stageId - 1] = stars;
       return next;
     });
+
+    // Reward stage completion coins (+10 coins per stage!)
+    handleEarnCoins(10);
 
     const currentStageInfo = STAGES.find((s) => s.id === stageId) || STAGES[0];
 
@@ -87,6 +112,8 @@ export default function App() {
     } else if (completedStageId === 4) {
       setGameState('STAGE_5');
     } else if (completedStageId === 5) {
+      // Award grand finale bonus (+30 coins!)
+      handleEarnCoins(30);
       setGameState('VICTORY');
     }
   };
@@ -117,16 +144,23 @@ export default function App() {
     }
   };
 
+  // Active equipped perks
+  const hasCutChoicePowerup = profile.equippedPowerups.includes('powerup_cut_choice');
+  const hasExtraTimePowerup = profile.equippedPowerups.includes('powerup_extra_time');
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-body selection:bg-amber-400 selection:text-slate-950">
       {/* Title Screen */}
       {gameState === 'TITLE' && (
         <TitleScreen
           selectedCharacter={selectedCharacter}
+          profile={profile}
           onSelectCharacter={setSelectedCharacter}
           onStartGame={handleStartGame}
           isMuted={isMuted}
           onToggleMute={handleToggleMute}
+          onOpenProfile={() => setIsProfileOpen(true)}
+          onOpenShop={() => setIsShopOpen(true)}
         />
       )}
 
@@ -135,6 +169,7 @@ export default function App() {
         <>
           <StageNavHeader
             character={selectedCharacter}
+            profile={profile}
             currentStageId={getCurrentStageId()}
             score={totalScore}
             stars={stageStars}
@@ -143,6 +178,8 @@ export default function App() {
             onToggleMute={handleToggleMute}
             onExitToMenu={handleRestart}
             onOpenMentor={() => setIsMentorOpen(true)}
+            onOpenProfile={() => setIsProfileOpen(true)}
+            onOpenShop={() => setIsShopOpen(true)}
           />
 
           <main className="flex-1 flex flex-col justify-center py-6 px-2 sm:px-4">
@@ -150,8 +187,10 @@ export default function App() {
               <StageOneQuiz
                 onComplete={(score, stars) => handleStageComplete(1, score, stars)}
                 onUpdateScore={handleUpdateScore}
+                onEarnCoins={handleEarnCoins}
                 setTimeLeft={setTimeLeft}
-                hasPerkExtraTime={selectedCharacter.id === 'aidin'}
+                hasPerkExtraTime={selectedCharacter.id === 'aidin' || hasExtraTimePowerup}
+                hasCutChoicePowerup={hasCutChoicePowerup}
               />
             )}
 
@@ -199,7 +238,7 @@ export default function App() {
             character={selectedCharacter}
             totalScore={totalScore}
             stars={stageStars}
-            playerName={playerName}
+            playerName={profile.fullName || profile.nickname}
             onRestart={handleRestart}
           />
         </div>
@@ -218,6 +257,22 @@ export default function App() {
 
       {/* AI Hero Mentor Q&A Modal */}
       <HeroMentorModal isOpen={isMentorOpen} onClose={() => setIsMentorOpen(false)} />
+
+      {/* Student Hero Profile Modal */}
+      <ProfileModal
+        isOpen={isProfileOpen}
+        onClose={() => setIsProfileOpen(false)}
+        profile={profile}
+        onUpdateProfile={setProfile}
+      />
+
+      {/* Hero Reward Shop Modal */}
+      <ShopModal
+        isOpen={isShopOpen}
+        onClose={() => setIsShopOpen(false)}
+        profile={profile}
+        onUpdateProfile={setProfile}
+      />
     </div>
   );
 }
