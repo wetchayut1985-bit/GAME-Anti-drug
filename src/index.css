@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Prompt', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Kanit', sans-serif;
+  }
+}
+
+.font-heading {
+  font-family: 'Kanit', sans-serif;
+}
+
+.font-body {
+  font-family: 'Prompt', sans-serif;
+}
+
+.font-display {
+  font-family: 'Outfit', 'Kanit', sans-serif;
+}
+
+/* Custom animated pulse glow for hero highlights */
+@keyframes hero-glow {
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 35px rgba(59, 130, 246, 0.7), 0 0 60px rgba(16, 185, 129, 0.4);
+  }
+}
+
+.hero-glow {
+  animation: hero-glow 3s infinite ease-in-out;
+}

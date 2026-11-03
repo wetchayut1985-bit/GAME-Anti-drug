@@ -1,0 +1,6 @@
+{
+  "name": "ภารกิจพิชิตยาเสพติด (Drug-Free Hero)",
+  "description": "เกมออนไลน์ 2 มิติ แนวผจญภัยและตอบคำถาม เพื่อรณรงค์ต่อต้านยาเสพติดสำหรับนักเรียนระดับมัธยมศึกษา พร้อมภารกิจ 5 ด่าน สะสมดาว และรับเหรียญฮีโร่",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
